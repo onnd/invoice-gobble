@@ -1,33 +1,26 @@
-from enum import Enum
+# Generate text file with pdftotext -layout <pdf file>
 import sys
 
-
-class State(Enum):
-    BEGIN = 1
-    TRANSACTIONS = 2
-
-
 INFILE = sys.argv[1]
-
 with open(INFILE, 'r') as f:
-    state = State.BEGIN
     line = f.readline()
     while line:
-        stripped = line.strip()
-        if stripped != '':
-            if stripped[:17] == 'Transaktionsdatum':
-                state = State.TRANSACTIONS
-            elif state == State.TRANSACTIONS:
-                if stripped[4] == stripped[7] == "-":
-                    parts = stripped.split(' ')
-                    date = parts[0]
-                    description = ' '.join(parts[2:-1])
-                    if parts[2] == 'Rabatt':
-                        amount = '-' + parts[-1]
-                    else:
-                        amount = parts[-1]
-                    if parts[2] != 'INBETALNING':
-                        print(f"{description};{date};{amount}")
+        if line[:17] == 'Transaktionsdatum':
+            description_pos = line.find('Beskrivning')
+            locality_pos = line.find('Ort')
+            amount_pos = line.find('Belopp')
+            paid_pos = line.find('Inbetalt')
+        if len(line) > 10:
+            if line[4] == line[7] == "-":
+                date = line[:10]
+                if locality_pos == -1:
+                    description = line[description_pos:description_pos + 22].strip()
+                    if description == 'INBETALNING BANKGIRO':
+                        line = f.readline()
+                        continue
+                    amount = "-" + line[description_pos + 25:].strip()
                 else:
-                    state = State.BEGIN
+                    description = line[description_pos:description_pos + 22].strip() + " " + line[locality_pos:locality_pos + 13].strip()
+                    amount = line[locality_pos + 14:].strip()
+                print(f"{description};{date};{amount}")
         line = f.readline()
